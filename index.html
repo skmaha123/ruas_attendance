@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RUAS Student Attendance & Learning Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="jszip.min.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-in">
+      <div>
+        <div class="kicker">Ramaiah University of Applied Sciences</div>
+        <h1>Student Attendance &amp; Learning Dashboard</h1>
+        <p class="sub">Spot fast and slow learners, plan counselling and parent notifications, and see each class at a glance · 🔒 data stays in your browser</p>
+      </div>
+      <div class="loadbox">
+        <label class="drop" id="drop"><input type="file" id="file" accept=".xlsx,.csv" hidden /><b>📂 Upload Excel / CSV</b><span>use the template’s columns</span></label>
+        <button class="btn ghost" id="btnSample">Use sample data</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p id="status" class="status"></p>
+
+    <section id="empty" class="card empty">
+      <h2>How it works</h2>
+      <ol>
+        <li>Upload the anonymised Excel template (<code>Attendance_Data</code> sheet), or your own data with the same headers.</li>
+        <li>Adjust the rules (attendance and score thresholds) to RUAS policy. Every chart updates instantly.</li>
+        <li>Read the graphs: <b>★ fast learners</b>, <b>▲ slow learners</b>, <b>◆ counselling</b>, <b>⚑ notify parents</b>.</li>
+        <li>Open the action lists, review each student and export the decisions to Excel.</li>
+      </ol>
+    </section>
+
+    <div id="main" hidden>
+      <section class="card controls">
+        <div class="ctop">
+          <div class="filters" id="filters"></div>
+          <div class="cbtns">
+            <div class="seg" id="levelSeg"><button data-l="student" class="on">Per student</button><button data-l="course">Per course</button></div>
+            <button class="btn ghost" id="btnReset">Clear filters</button>
+            <button class="btn accent" id="btnExport">⬇ Export decisions</button>
+          </div>
+        </div>
+        <details>
+          <summary>⚙ Decision rules (edit to match RUAS policy; loaded from the workbook’s Settings sheet)</summary>
+          <div class="rules" id="rules"></div>
+          <p class="small muted">Per student: averages across their courses. Counselling also triggers on attendance shortage in 2+ courses, slow learner on low score in 2+ courses, and parent notification on 2+ courses below the notification level.</p>
+        </details>
+      </section>
+
+      <section class="kpis" id="kpis"></section>
+
+      <section class="card">
+        <div class="chead"><h2>Who needs what? Attendance vs score</h2><div class="legend" id="legend"></div></div>
+        <p class="small muted">Each dot is a student (or a course record). Dashed lines are the decision thresholds. Hover for details, click to open the student.</p>
+        <div id="scatter" class="scatter"></div>
+      </section>
+
+      <div class="grid2">
+        <section class="card">
+          <div class="chead"><h2>Decision mix</h2>
+            <label class="small">by <select id="mixBy"><option value="program">Program</option><option value="dept">Dept</option><option value="sem">Sem</option><option value="course">Course</option></select></label></div>
+          <div id="mix" class="bars"></div>
+          <p class="small muted">Sorted by the share needing counselling or parent notification.</p>
+        </section>
+        <section class="card">
+          <h2>Why attendance matters</h2>
+          <p class="small muted">Average score by attendance band (course records)</p>
+          <div id="bands" class="bars"></div>
+          <p class="note" id="bandNote"></p>
+        </section>
+      </div>
+
+      <section class="card">
+        <h2>👩‍🏫 Faculty view: every class at a glance</h2>
+        <p class="small muted" id="facNote"></p>
+        <div class="tablewrap">
+          <table id="facTable">
+            <thead><tr><th data-s="f">Faculty ⇅</th><th>Course(s)</th><th data-s="n">Records ⇅</th><th data-s="att">Avg attendance % ⇅</th><th data-s="score">Avg score % ⇅</th><th data-s="pass">Pass % ⇅</th><th data-s="slow">Slow ⇅</th><th data-s="counsel">Counselling ⇅</th><th data-s="parent">Parents ⇅</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="small muted">Use this to plan support, not to rank people: class results also depend on course difficulty, batch and timetable.</p>
+      </section>
+
+      <section class="card" id="actions">
+        <div class="chead"><h2>Action lists</h2>
+          <div class="seg" id="actTabs"><button data-t="parent">⚑ Notify parents</button><button data-t="counsel">◆ Counselling</button><button data-t="slow">▲ Slow learners</button><button data-t="fast">★ Fast learners</button></div></div>
+        <p id="actInfo" class="actinfo"></p>
+        <div class="tablewrap scroll"><table id="actTable"><thead><tr><th>Student</th><th>Program</th><th>Attendance</th><th>Score</th><th>Why</th></tr></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="card">
+        <div class="chead"><h2>All students</h2><input id="search" type="search" placeholder="Search name, registration or course" /><span id="allCount" class="small muted"></span></div>
+        <div class="tablewrap scroll"><table id="allTable"><thead><tr><th>Student</th><th>Dept · Program</th><th>Attendance</th><th>Score</th><th>Decisions</th></tr></thead><tbody></tbody></table></div>
+      </section>
+      <p class="disclaimer">Decisions are suggestions based on the rules above. Mentors and the HoD review each case before contacting a student or parent.</p>
+    </div>
+  </main>
+
+  <dialog id="dlg">
+    <div class="dlg">
+      <div class="dhead"><div><h2 id="dName"></h2><p class="small muted" id="dMeta"></p></div><button class="btn ghost" id="btnClose">Close</button></div>
+      <div id="dTags"></div>
+      <ul id="dReasons" class="reasons"></ul>
+      <h3>Course by course</h3>
+      <div id="dCourses"></div>
+      <h3>Draft notification</h3>
+      <textarea id="dLetter" rows="10"></textarea>
+      <div class="row"><button class="btn primary" id="btnCopy">Copy text</button><span class="small muted">Review and edit before sending.</span></div>
+    </div>
+  </dialog>
+  <div id="tip" class="tip" hidden></div>
+  <footer class="foot wrap">RUAS Student Attendance &amp; Learning Dashboard · training version</footer>
+  <script src="app.js"></script>
+</body>
+</html>
